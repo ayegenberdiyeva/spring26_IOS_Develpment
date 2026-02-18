@@ -12,6 +12,7 @@ struct OutfitGenerator: View {
     
     @State private var outfit: Outfit = .empty
     @State private var favorites = Favorites()
+    @State private var count: Int = 0
     
     var body: some View {
         VStack(spacing: 20) {
@@ -28,34 +29,27 @@ struct OutfitGenerator: View {
             Spacer()
             
             Button {
-                outfit = Outfit.random(using: closet)
+                var newOutfit = Outfit.random(using: closet)
+                
+                while newOutfit == outfit {
+                    newOutfit = Outfit.random(using: closet)
+                }
+                
+                outfit = newOutfit
+                count += 1
             } label: {
                 Text(outfit.hasGeneratedOutfit ? "Generate Again" : "Generate Outfit")
             }
             .foregroundStyle(Color(.white))
             .underline(true)
+            
+            Text("Count: \(count)")
+                .foregroundStyle(Color(.white))
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(red: 23/255, green: 23/255, blue: 23/255))
     }
-    
-//    private func generateOutfit() {
-//        let wearDress = Bool.random()
-//        
-//        shoeIndex = Int.random(in: 0..<shoes.count)
-//        bagIndex = Int.random(in: 0..<bags.count)
-//        
-//        if wearDress {
-//            dressIndex = Int.random(in: 0..<dresses.count)
-//            topIndex = nil
-//            bottomIndex = nil
-//        } else {
-//            topIndex = Int.random(in: 0..<tops.count)
-//            bottomIndex = Int.random(in: 0..<bottoms.count)
-//            dressIndex = nil
-//        }
-//    }
 }
 
 private struct Closet {
@@ -91,7 +85,8 @@ private struct Outfit: Equatable {
                 topIndex: nil,
                 bottomIndex: nil,
                 shoeIndex: shoe,
-                bagIndex: bag)
+                bagIndex: bag
+            )
         } else {
             return Outfit(
                 dressIndex: nil,
@@ -118,12 +113,13 @@ private struct OutfitView: View {
                         imageName: closet.dresses[dressIndex],
                         isLiked: favorites.contains(.init(category: .dress, index: dressIndex)),
                         height: 380,
-                        isScaledToFit: true
+                        isScaledToFit: false,
+                        width: 180
                     ) {
                         favorites.toggle(.init(category: .dress, index: dressIndex))
                     }
                     
-                    Spacer(minLength: 140)
+                    Spacer(minLength: 100)
                 }
                 .frame(maxWidth: .infinity)
             } else if let topIndex = outfit.topIndex, let bottomIndex = outfit.bottomIndex {
@@ -140,7 +136,7 @@ private struct OutfitView: View {
                     OutfitItemView(
                         imageName: closet.bottoms[bottomIndex],
                         isLiked: favorites.contains(.init(category: .bottom, index: bottomIndex)),
-                        height: 340,
+                        height: 300,
                         isScaledToFit: true
                     ) {
                         favorites.toggle(.init(category: .bottom, index: bottomIndex))
@@ -204,12 +200,18 @@ private struct OutfitItemView: View {
             Image(imageName)
                 .resizable()
                 .scaledToFit()
+                .onTapGesture(count: 2) {
+                    onLikeTap()
+                }
                 .frame(height: height)
                 .frame(width: width)
         } else {
             Image(imageName)
                 .resizable()
                 .scaledToFill()
+                .onTapGesture(count: 2) {
+                    onLikeTap()
+                }
                 .frame(height: height)
                 .frame(width: width)
                 .clipped()
@@ -222,10 +224,13 @@ private struct LikeButton: View {
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        Button {
+            action()
+        } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .foregroundColor(isLiked ? .red : .white)
                 .font(.title2)
+                .animation(.bouncy, value: isLiked)
         }
         .buttonStyle(.plain)
     }
