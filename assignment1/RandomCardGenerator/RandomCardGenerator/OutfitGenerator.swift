@@ -11,6 +11,7 @@ struct OutfitGenerator: View {
     private let closet = Closet()
     
     @State private var outfit: Outfit = .empty
+    @State private var favorites = Favorites()
     
     var body: some View {
         VStack(spacing: 20) {
@@ -21,7 +22,7 @@ struct OutfitGenerator: View {
             Spacer()
             
             if outfit.hasGeneratedOutfit {
-                OutfitView(closet: closet, outfit: outfit)
+                OutfitView(closet: closet, outfit: outfit, favorites: $favorites)
             }
             
             Spacer()
@@ -107,29 +108,43 @@ private struct OutfitView: View {
     let closet: Closet
     let outfit: Outfit
     
+    @Binding var favorites: Favorites
+    
     var body: some View {
         HStack {
             if let dressIndex = outfit.dressIndex {
                 VStack {
-                    Image(closet.dresses[dressIndex])
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 480)
+                    OutfitItemView(
+                        imageName: closet.dresses[dressIndex],
+                        isLiked: favorites.contains(.init(category: .dress, index: dressIndex)),
+                        height: 380,
+                        isScaledToFit: true
+                    ) {
+                        favorites.toggle(.init(category: .dress, index: dressIndex))
+                    }
                     
                     Spacer(minLength: 140)
                 }
                 .frame(maxWidth: .infinity)
             } else if let topIndex = outfit.topIndex, let bottomIndex = outfit.bottomIndex {
                 VStack {
-                    Image(closet.tops[topIndex])
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 180)
+                    OutfitItemView(
+                        imageName: closet.tops[topIndex],
+                        isLiked: favorites.contains(.init(category: .top, index: topIndex)),
+                        height: 160,
+                        isScaledToFit: true
+                    ) {
+                        favorites.toggle(.init(category: .top, index: topIndex))
+                    }
                     
-                    Image(closet.bottoms[bottomIndex])
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 300)
+                    OutfitItemView(
+                        imageName: closet.bottoms[bottomIndex],
+                        isLiked: favorites.contains(.init(category: .bottom, index: bottomIndex)),
+                        height: 340,
+                        isScaledToFit: true
+                    ) {
+                        favorites.toggle(.init(category: .bottom, index: bottomIndex))
+                    }
                     
                     Spacer()
                 }
@@ -140,17 +155,26 @@ private struct OutfitView: View {
                 Spacer()
                 
                 if let bagIndex = outfit.bagIndex {
-                    Image(closet.bags[bagIndex])
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 100, height: 240)
+                    OutfitItemView(
+                        imageName: closet.bags[bagIndex],
+                        isLiked: favorites.contains(.init(category: .bag, index: bagIndex)),
+                        height: 240,
+                        isScaledToFit: false,
+                        width: 120
+                    ) {
+                        favorites.toggle(.init(category: .bag, index: bagIndex))
+                    }
                 }
                 
                 if let shoeIndex = outfit.shoeIndex {
-                    Image(closet.shoes[shoeIndex])
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 180)
+                    OutfitItemView(
+                        imageName: closet.shoes[shoeIndex],
+                        isLiked: favorites.contains(.init(category: .shoe, index: shoeIndex)),
+                        height: 180,
+                        isScaledToFit: true
+                    ) {
+                        favorites.toggle(.init(category: .shoe, index: shoeIndex))
+                    }
                 }
             }
         }
@@ -158,8 +182,75 @@ private struct OutfitView: View {
     }
 }
 
+private struct OutfitItemView: View {
+    let imageName: String
+    let isLiked: Bool
+    let height: CGFloat
+    let isScaledToFit: Bool
+    
+    var width: CGFloat? = nil
+    let onLikeTap: () -> Void
+    
+    var body: some View {
+        HStack(alignment: .top) {
+            image
+            LikeButton(isLiked: isLiked, action: onLikeTap)
+        }
+    }
+    
+    @ViewBuilder
+    private var image: some View {
+        if isScaledToFit {
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+                .frame(width: width)
+        } else {
+            Image(imageName)
+                .resizable()
+                .scaledToFill()
+                .frame(height: height)
+                .frame(width: width)
+                .clipped()
+        }
+    }
+}
+
+private struct LikeButton: View {
+    let isLiked: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isLiked ? "heart.fill" : "heart")
+                .foregroundColor(isLiked ? .red : .white)
+                .font(.title2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private enum ItemCategory: String, Hashable {
     case dress, top, bottom, shoe, bag
+}
+
+private struct ItemID: Hashable {
+    let category: ItemCategory
+    let index: Int
+}
+
+private struct Favorites {
+    private(set) var ids: Set<ItemID> = []
+    
+    mutating func toggle(_ id: ItemID) {
+        if ids.contains(id) { ids.remove(id) }
+        else { ids.insert(id) }
+    }
+    
+    func contains(_ id: ItemID) -> Bool {
+        ids.contains(id)
+    }
 }
 
 #Preview {
