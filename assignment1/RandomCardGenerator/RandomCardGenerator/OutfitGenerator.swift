@@ -13,26 +13,40 @@ struct OutfitGenerator: View {
     @State private var outfit: Outfit = .empty
     @State private var favorites = Favorites()
     @State private var count: Int = 0
+    @State private var pinned: [ItemCategory: Int] = [:]
+    
+    private func pin(_ category: ItemCategory) -> Int? {
+        pinned[category]
+    }
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Outfit Generator")
-                .font(.largeTitle.bold())
-                .foregroundStyle(Color(.white))
+            
+            if !outfit.hasGeneratedOutfit {
+                Spacer()
+                
+                Text("#OOTD")
+                    .font(.system(size: 76, weight: .bold))
+                    .foregroundStyle(Color(.white))
+            } else {
+                Text("Outfit Generator")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(Color(.white))
+            }
             
             Spacer()
             
             if outfit.hasGeneratedOutfit {
-                OutfitView(closet: closet, outfit: outfit, favorites: $favorites)
+                OutfitView(closet: closet, outfit: outfit, favorites: $favorites, pinned: $pinned)
             }
             
             Spacer()
             
             Button {
-                var newOutfit = Outfit.random(using: closet)
+                var newOutfit = generateOutfitPinned()
                 
                 while newOutfit == outfit {
-                    newOutfit = Outfit.random(using: closet)
+                    newOutfit = generateOutfitPinned()
                 }
                 
                 outfit = newOutfit
@@ -49,6 +63,43 @@ struct OutfitGenerator: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(red: 23/255, green: 23/255, blue: 23/255))
+    }
+    
+    private func generateOutfitPinned() -> Outfit {
+        let wearDress: Bool
+        if pin(.dress) != nil {
+            wearDress = true
+        } else if pin(.top) != nil || pin(.bottom) != nil {
+            wearDress = false
+        } else {
+            wearDress = Bool.random()
+        }
+        
+        let show = pin(.shoe) ?? Int.random(in: 0..<closet.shoes.count)
+        let bag = pin(.bag) ?? Int.random(in: 0..<closet.bags.count)
+        
+        if wearDress {
+            let dress = pin(.dress) ?? Int.random(in: 0..<closet.dresses.count)
+            
+            return Outfit(
+                dressIndex: dress,
+                topIndex: nil,
+                bottomIndex: nil,
+                shoeIndex: show,
+                bagIndex: bag
+            )
+        } else {
+            let top = pin(.top) ?? Int.random(in: 0..<closet.tops.count)
+            let bottom = pin(.bottom) ?? Int.random(in: 0..<closet.bottoms.count)
+            
+            return Outfit(
+                dressIndex: nil,
+                topIndex: top,
+                bottomIndex: bottom,
+                shoeIndex: show,
+                bagIndex: bag
+            )
+        }
     }
 }
 
@@ -104,6 +155,22 @@ private struct OutfitView: View {
     let outfit: Outfit
     
     @Binding var favorites: Favorites
+    @Binding var pinned: [ItemCategory: Int]
+    
+    private func toggglePin(category: ItemCategory, index: Int) {
+        if pinned[category] == index {
+            pinned[category] = nil
+        } else {
+            pinned[category] = index
+            
+            if category == .dress {
+                pinned[.top] = nil
+                pinned[.bottom] = nil
+            } else if category == .top || category == .bottom {
+                pinned[.dress] = nil
+            }
+        }
+    }
     
     var body: some View {
         HStack {
@@ -112,12 +179,18 @@ private struct OutfitView: View {
                     OutfitItemView(
                         imageName: closet.dresses[dressIndex],
                         isLiked: favorites.contains(.init(category: .dress, index: dressIndex)),
+                        isPinned: pinned[.dress] == dressIndex,
                         height: 380,
                         isScaledToFit: false,
-                        width: 180
-                    ) {
-                        favorites.toggle(.init(category: .dress, index: dressIndex))
-                    }
+                        width: 180,
+                        onLikeTap: {
+                            favorites.toggle(.init(category: .dress, index: dressIndex));
+                        },
+                        onPinTap: {
+                            toggglePin(category: .dress, index: dressIndex)
+                        }
+                
+                    )
                     
                     Spacer(minLength: 100)
                 }
@@ -127,20 +200,31 @@ private struct OutfitView: View {
                     OutfitItemView(
                         imageName: closet.tops[topIndex],
                         isLiked: favorites.contains(.init(category: .top, index: topIndex)),
+                        isPinned: pinned[.top] == topIndex,
                         height: 160,
-                        isScaledToFit: true
-                    ) {
-                        favorites.toggle(.init(category: .top, index: topIndex))
-                    }
+                        isScaledToFit: true,
+                        width: 180,
+                        onLikeTap: {
+                            favorites.toggle(.init(category: .top, index: topIndex))
+                        },
+                        onPinTap: {
+                            toggglePin(category: .top, index: topIndex)
+                        }
+                    )
                     
                     OutfitItemView(
                         imageName: closet.bottoms[bottomIndex],
                         isLiked: favorites.contains(.init(category: .bottom, index: bottomIndex)),
+                        isPinned: pinned[.bottom] == bottomIndex,
                         height: 300,
-                        isScaledToFit: true
-                    ) {
-                        favorites.toggle(.init(category: .bottom, index: bottomIndex))
-                    }
+                        isScaledToFit: true,
+                        onLikeTap: {
+                           favorites.toggle(.init(category: .bottom, index: bottomIndex))
+                       },
+                        onPinTap: {
+                            toggglePin(category: .bottom, index: bottomIndex)
+                        }
+                    )
                     
                     Spacer()
                 }
@@ -154,23 +238,33 @@ private struct OutfitView: View {
                     OutfitItemView(
                         imageName: closet.bags[bagIndex],
                         isLiked: favorites.contains(.init(category: .bag, index: bagIndex)),
+                        isPinned: pinned[.bag] == bagIndex,
                         height: 240,
                         isScaledToFit: false,
-                        width: 120
-                    ) {
-                        favorites.toggle(.init(category: .bag, index: bagIndex))
-                    }
+                        width: 120,
+                        onLikeTap: {
+                            favorites.toggle(.init(category: .bag, index: bagIndex))
+                        },
+                        onPinTap: {
+                            toggglePin(category: .bag, index: bagIndex)
+                        }
+                    )
                 }
                 
                 if let shoeIndex = outfit.shoeIndex {
                     OutfitItemView(
                         imageName: closet.shoes[shoeIndex],
                         isLiked: favorites.contains(.init(category: .shoe, index: shoeIndex)),
+                        isPinned: pinned[.shoe] == shoeIndex,
                         height: 180,
-                        isScaledToFit: true
-                    ) {
-                        favorites.toggle(.init(category: .shoe, index: shoeIndex))
-                    }
+                        isScaledToFit: true,
+                        onLikeTap: {
+                            favorites.toggle(.init(category: .shoe, index: shoeIndex))
+                        },
+                        onPinTap: {
+                            toggglePin(category: .shoe, index: shoeIndex)
+                        }
+                    )
                 }
             }
         }
@@ -181,16 +275,21 @@ private struct OutfitView: View {
 private struct OutfitItemView: View {
     let imageName: String
     let isLiked: Bool
+    let isPinned: Bool
     let height: CGFloat
     let isScaledToFit: Bool
     
     var width: CGFloat? = nil
     let onLikeTap: () -> Void
+    let onPinTap: () -> Void
     
     var body: some View {
         HStack(alignment: .top) {
             image
-            LikeButton(isLiked: isLiked, action: onLikeTap)
+            VStack (spacing: 12) {
+                LikeButton(isLiked: isLiked, action: onLikeTap)
+                PinButton(isPinned: isPinned, action: onPinTap)
+            }
         }
     }
     
@@ -231,6 +330,24 @@ private struct LikeButton: View {
                 .foregroundColor(isLiked ? .red : .white)
                 .font(.title2)
                 .animation(.bouncy, value: isLiked)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct PinButton: View {
+    let isPinned: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+                .foregroundColor(.white)
+                .font(.title2)
+                .animation(.bouncy, value: isPinned)
+                .rotationEffect(.degrees(isPinned ? 45 : 0))
         }
         .buttonStyle(.plain)
     }
