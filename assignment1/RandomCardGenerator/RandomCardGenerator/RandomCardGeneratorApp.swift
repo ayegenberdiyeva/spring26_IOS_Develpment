@@ -11,7 +11,7 @@ import SwiftUI
 struct RandomCardGeneratorApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            OutfitGenerator()
         }
     }
 }

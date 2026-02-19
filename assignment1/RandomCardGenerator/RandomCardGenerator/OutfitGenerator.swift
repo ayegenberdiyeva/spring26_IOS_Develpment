@@ -26,7 +26,7 @@ struct OutfitGenerator: View {
                 Spacer()
                 
                 Text("#OOTD")
-                    .font(.system(size: 76, weight: .bold))
+                    .font(.system(size: 96, weight: .bold))
                     .foregroundStyle(Color(.white))
             } else {
                 Text("Outfit Generator")
@@ -52,8 +52,11 @@ struct OutfitGenerator: View {
                 outfit = newOutfit
                 count += 1
             } label: {
-                Text(outfit.hasGeneratedOutfit ? "Generate Again" : "Generate Outfit")
+                HStack(spacing: 12) {                    
+                    Text(outfit.hasGeneratedOutfit ? "Generate Again" : "Generate Outfit")
+                }
             }
+            .font(.system(size: 16))
             .foregroundStyle(Color(.white))
             .underline(true)
             
